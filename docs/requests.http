@@ -1,0 +1,33 @@
+### Code review
+POST http://localhost:8080/api/v1/reviews
+Content-Type: application/json
+
+{
+  "language": "java",
+  "code": "public int dividir(int a, int b) { return a / b; }"
+}
+
+### Gerar testes
+POST http://localhost:8080/api/v1/tests
+Content-Type: application/json
+
+{
+  "className": "Calculadora",
+  "code": "public class Calculadora { public int somar(int a, int b) { return a + b; } }"
+}
+
+### Explicar código
+POST http://localhost:8080/api/v1/explanations
+Content-Type: application/json
+
+{
+  "language": "java",
+  "code": "list.stream().filter(n -> n % 2 == 0).map(n -> n * n).toList();",
+  "level": "BEGINNER"
+}
+
+### Histórico
+GET http://localhost:8080/api/v1/history?page=0&size=10&type=REVIEW
+
+### Detalhe
+GET http://localhost:8080/api/v1/history/1

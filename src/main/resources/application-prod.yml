@@ -1,0 +1,10 @@
+# Perfil de produção: PostgreSQL.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update   # para produção real, prefira migrations (Flyway) — veja o Roadmap
+    open-in-view: false

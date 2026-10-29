@@ -1,0 +1,13 @@
+# Perfil de desenvolvimento: banco H2 em memória (dados somem ao reiniciar).
+spring:
+  datasource:
+    url: jdbc:h2:mem:codementor;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: false

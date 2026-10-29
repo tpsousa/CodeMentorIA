@@ -1,0 +1,47 @@
+# Sobe a API + PostgreSQL. Provedor de IA configurado pelo arquivo .env
+#   docker compose up -d --build
+# Para usar Ollama local dentro do compose:
+#   docker compose --profile ollama up -d --build
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: codementor
+      POSTGRES_USER: codementor
+      POSTGRES_PASSWORD: codementor
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codementor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/codementor
+      DB_USER: codementor
+      DB_PASSWORD: codementor
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.groq.com/openai}
+      AI_API_KEY: ${AI_API_KEY:-coloque-sua-chave}
+      AI_MODEL: ${AI_MODEL:-llama-3.3-70b-versatile}
+      AI_COMPLETIONS_PATH: ${AI_COMPLETIONS_PATH:-/v1/chat/completions}
+
+  ollama:
+    image: ollama/ollama
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  pgdata:
+  ollama:
