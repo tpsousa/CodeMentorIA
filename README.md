@@ -326,6 +326,9 @@ mvn test
 | Teste | O que cobre |
 |---|---|
 | `ReviewServiceTest` | Fluxo do service com IA mockada e limite da nota (0–10) |
+| `TestGenServiceTest` | Geração de testes, variáveis do prompt e cenários ausentes |
+| `ExplanationServiceTest` | Explicação por nível e nível padrão `BEGINNER` |
+| `HistoryServiceTest` | Listagem com/sem filtro, paginação limitada e `404` |
 | `ReviewControllerTest` | Status `200`, `400` (validação) e `502` (IA indisponível) |
 
 A IA é **sempre mockada** nos testes: não gastam cota e são determinísticos.
