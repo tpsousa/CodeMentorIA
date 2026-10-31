@@ -1,5 +1,9 @@
 # CodeMentor AI
 
+## Recognition
+
+This project was selected for the [XERJ Corpus Hub](https://hub.xerj.org/corpus/tpsousa--codementoria), a reference corpus for AI coding agents.
+
 **English** | [Português (BR)](README.pt-BR.md)
 
 > REST API built with **Java 21 + Spring Boot 3.5 + Spring AI** that works as an **AI code mentor**: it performs *code reviews*, generates **JUnit 5 unit tests**, **explains code** at three levels (including streaming) and keeps a history of every analysis.
