@@ -1,5 +1,7 @@
 # CodeMentor AI
 
+[English](README.md) | **Português (BR)**
+
 > API REST em **Java 21 + Spring Boot 3.5 + Spring AI** que atua como um **mentor de código com IA**: faz *code review*, gera **testes unitários JUnit 5**, **explica código** em três níveis (inclusive em streaming) e guarda o histórico de tudo.
 >
 > **Gratuito de rodar**: usa **Groq** (free tier) por padrão e troca para **Ollama (modelos locais, offline)**, **Google Gemini** ou **OpenAI** só com variáveis de ambiente, sem mudar uma linha de código. O desenvolvimento do projeto é feito com o agente open source **OpenCode**.
@@ -167,7 +169,7 @@ sudo apt install -y openjdk-21-jdk maven git curl
 ### 1. Clonar
 
 ```bash
-git clone https://github.com/SEU_USUARIO/codementor-ai.git
+git clone https://github.com/tpsousa/codementor-ai.git
 cd codementor-ai
 ```
 
@@ -362,7 +364,7 @@ codementor-ai/
 ├── .env.example  .gitignore  .dockerignore
 ├── AGENTS.md  CLAUDE.md
 ├── Dockerfile  docker-compose.yml
-├── LICENSE  pom.xml  README.md
+├── LICENSE  pom.xml  README.md  README.pt-BR.md
 ```
 
 ---
@@ -560,6 +562,6 @@ Distribuído sob a licença **MIT**. Veja [`LICENSE`](LICENSE).
 Feito por **Seu Nome**
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://linkedin.com/in/seu-usuario)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/seu-usuario)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/tpsousa)
 
 Se este projeto te ajudou, deixe uma estrela no repositório.
