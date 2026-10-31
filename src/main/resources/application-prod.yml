@@ -6,5 +6,9 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update   # para produção real, prefira migrations (Flyway) — veja o Roadmap
+      ddl-auto: validate   # o schema é criado/evoluído pelas migrations do Flyway
     open-in-view: false
+  flyway:
+    # Bancos antigos (criados com ddl-auto: update) são "baselinados" na V1
+    # em vez de falhar; bancos novos aplicam todas as migrations normalmente.
+    baseline-on-migrate: true

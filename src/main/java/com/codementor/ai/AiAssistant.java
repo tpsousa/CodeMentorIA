@@ -5,6 +5,7 @@ import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 
 /**
  * Único ponto de contato com a IA. Os services nunca usam o ChatClient diretamente,
@@ -58,5 +59,25 @@ public class AiAssistant {
             throw new AiUnavailableException("O provedor de IA retornou uma resposta vazia.");
         }
         return content;
+    }
+
+    /**
+     * Envia o prompt e devolve a resposta em pedaços (streaming).
+     * Erros do provedor, inclusive no meio do stream, viram {@link AiUnavailableException}.
+     */
+    public Flux<String> streamText(Resource promptTemplate, Map<String, Object> variables) {
+        try {
+            return chatClient.prompt()
+                    .user(u -> u.text(promptTemplate).params(variables))
+                    .stream()
+                    .content()
+                    .onErrorMap(e -> e instanceof AiUnavailableException
+                            ? e
+                            : new AiUnavailableException(
+                                    "Não foi possível obter uma resposta do provedor de IA.", e));
+        } catch (Exception e) {
+            return Flux.error(new AiUnavailableException(
+                    "Não foi possível obter uma resposta do provedor de IA.", e));
+        }
     }
 }

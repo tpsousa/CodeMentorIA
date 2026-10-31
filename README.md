@@ -71,6 +71,7 @@ Projeto de portfólio que mostra como integrar **LLMs** em uma aplicação Java 
 |  **Code Review** | Retorna nota 0–10, problemas com severidade, sugestões e código melhorado |
 |  **Gerador de testes** | Gera testes JUnit 5 + Mockito para uma classe Java |
 |  **Explicador** | Explica código para nível `BEGINNER`, `INTERMEDIATE` ou `ADVANCED` |
+|  **Streaming (SSE)** | Explicações chegam em pedaços via `text/event-stream` |
 |  **Histórico** | Todas as análises ficam salvas, com paginação e filtro por tipo |
 |  **Multi-provedor** | Groq, Gemini, Ollama ou OpenAI via variáveis de ambiente |
 |  **Swagger UI** | Documentação interativa em `/swagger-ui.html` |
@@ -186,6 +187,16 @@ Mais exemplos prontos em [`docs/requests.http`](docs/requests.http) (funciona no
 | `RATE_LIMIT_RPM` | `10` | Requisições por minuto por IP |
 | `PORT` | `8080` | Porta HTTP |
 
+### Migrations (Flyway)
+
+O schema é versionado em `src/main/resources/db/migration` (a V1 cria a tabela `analysis`).
+
+- **`dev`**: o H2 em memória recebe as migrations e o `ddl-auto` continua `update`.
+- **`prod`**: `ddl-auto: validate` — o Hibernate apenas valida; qualquer mudança de schema exige uma nova migration.
+- Bancos de produção já existentes (criados com `update`) são **baselinados** na V1 (`baseline-on-migrate: true`), sem recriar a tabela.
+
+Para evoluir o schema, adicione um arquivo como `V2__descricao.sql` e reinicie a aplicação.
+
 ---
 
 ## Endpoints da API
@@ -197,6 +208,7 @@ Base: `/api/v1`
 | `POST` | `/reviews` | Code review com IA |
 | `POST` | `/tests` | Gera testes JUnit 5 |
 | `POST` | `/explanations` | Explica código |
+| `POST` | `/explanations/stream` | Explica código em streaming (SSE) |
 | `GET` | `/history?page=0&size=10&type=REVIEW` | Histórico paginado (`type`: `REVIEW`, `TESTS`, `EXPLANATION`) |
 | `GET` | `/history/{id}` | Detalhe de uma análise |
 
@@ -242,6 +254,24 @@ Resposta: `id`, `testClassName`, `testCode`, `scenariosCovered`, `createdAt`.
 
 `level` é opcional (padrão `BEGINNER`). Resposta: `id`, `level`, `explanation` (Markdown), `createdAt`.
 
+### `POST /explanations/stream` (SSE)
+
+Mesmo corpo do `/explanations`, mas a resposta é `text/event-stream`. Mantenha a conexão aberta (no terminal, use `curl -N`):
+
+```bash
+curl -N -X POST http://localhost:8080/api/v1/explanations/stream \
+  -H "Content-Type: application/json" \
+  -d '{"language":"java","code":"list.stream().filter(n -> n % 2 == 0).toList();","level":"BEGINNER"}'
+```
+
+| Evento | `data` | Quando |
+|---|---|---|
+| `token` | pedaço do texto | a cada trecho gerado pela IA |
+| `done` | `{"id":1,"level":"BEGINNER","createdAt":"..."}` | fim do stream; a análise já foi salva no histórico |
+| `error` | `{"detail":"..."}` | falha do provedor durante o stream |
+
+O status é `200` (o stream já começou); erros de validação continuam retornando `400` antes do stream.
+
 ### Erros (RFC 7807)
 
 | Status | Quando |
@@ -277,6 +307,7 @@ codementor-ai/
 │   │   │   └── service/                         # regras de negócio + AnalysisRecorder
 │   │   └── resources/
 │   │       ├── application.yml / -dev.yml / -prod.yml
+│   │       ├── db/migration/V1__cria_tabela_analysis.sql
 │   │       └── prompts/ review.st, generate-tests.st, explain.st
 │   └── test/java/com/codementor/                # testes unitários e de controller
 ├── .env.example  .gitignore  .dockerignore
@@ -327,7 +358,8 @@ mvn test
 |---|---|
 | `ReviewServiceTest` | Fluxo do service com IA mockada e limite da nota (0–10) |
 | `TestGenServiceTest` | Geração de testes, variáveis do prompt e cenários ausentes |
-| `ExplanationServiceTest` | Explicação por nível e nível padrão `BEGINNER` |
+| `ExplanationServiceTest` | Explicação por nível, nível padrão e streaming com persistência ao final |
+| `ExplanationControllerTest` | Streaming SSE (`token`, `done`, `error`) e `400` |
 | `HistoryServiceTest` | Listagem com/sem filtro, paginação limitada e `404` |
 | `ReviewControllerTest` | Status `200`, `400` (validação) e `502` (IA indisponível) |
 
@@ -366,10 +398,10 @@ cd codementor-ai && claude
 
 Ideias de tarefas para evoluir o projeto com um agente (uma por vez, revisando o diff):
 
-1. *"Adicione streaming de respostas com Server-Sent Events usando `.stream()`."*
-2. *"Crie migrations Flyway e troque `ddl-auto: update` por `validate` no perfil prod."*
+1. *"Adicione cache de explicações com Caffeine para economizar cota."*
+2. *"Escreva testes de integração com Testcontainers para o histórico."*
 3. *"Adicione um endpoint que recebe a URL de um Pull Request do GitHub e revisa o diff."*
-4. *"Escreva testes para `TestGenService`, `ExplanationService` e `HistoryService`."*
+4. *"Adicione paginação por cursor no histórico."*
 
 ---
 
@@ -403,8 +435,8 @@ Ideias de tarefas para evoluir o projeto com um agente (uma por vez, revisando o
 - [x] Explicador de código
 - [x] Histórico paginado
 - [x] Rate limit, Docker e CI
-- [ ] Streaming de resposta (SSE)
-- [ ] Migrations com Flyway
+- [x] Streaming de resposta (SSE)
+- [x] Migrations com Flyway
 - [ ] Revisão automática de Pull Requests via GitHub Webhooks
 - [ ] RAG sobre o repositório (pgvector)
 - [ ] Autenticação JWT e cotas por usuário

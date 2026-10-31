@@ -5,6 +5,11 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
+  # Respostas em streaming (SSE) podem demorar mais que o timeout padrão de async.
+  mvc:
+    async:
+      request-timeout: 120s
+
   # Provedor padrão: Groq (gratuito). Troque via variáveis de ambiente — veja o README.
   ai:
     openai:
