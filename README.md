@@ -1,8 +1,8 @@
 # CodeMentor AI
 
-> API REST em **Java 21 + Spring Boot 3.5 + Spring AI** que atua como um **mentor de código com IA**: faz *code review*, gera **testes unitários JUnit 5**, **explica código** em três níveis e guarda o histórico de tudo.
+> API REST em **Java 21 + Spring Boot 3.5 + Spring AI** que atua como um **mentor de código com IA**: faz *code review*, gera **testes unitários JUnit 5**, **explica código** em três níveis (inclusive em streaming) e guarda o histórico de tudo.
 >
-> **100% gratuito de rodar**: usa **Groq** (free tier) por padrão e troca para **Google Gemini** ou **Ollama (offline)** só com variáveis de ambiente, sem mudar uma linha de código.
+> **Gratuito de rodar**: usa **Groq** (free tier) por padrão e troca para **Ollama (modelos locais, offline)**, **Google Gemini** ou **OpenAI** só com variáveis de ambiente, sem mudar uma linha de código. O desenvolvimento do projeto é feito com o agente open source **OpenCode**.
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot)
@@ -18,7 +18,7 @@
 2. [Por que estas escolhas](#por-que-estas-escolhas)
 3. [Funcionalidades](#funcionalidades)
 4. [Arquitetura](#arquitetura)
-5. [Provedores de IA gratuitos](#provedores-de-ia-gratuitos)
+5. [Modelos de IA](#modelos-de-ia)
 6. [Como executar](#como-executar)
 7. [Configuração](#configuração)
 8. [Endpoints da API](#endpoints-da-api)
@@ -26,7 +26,7 @@
 10. [Como a IA é integrada](#como-a-ia-é-integrada)
 11. [Testes](#testes)
 12. [Docker](#docker)
-13. [Desenvolvendo com agentes de IA](#desenvolvendo-com-agentes-de-ia-claude-code--codex)
+13. [Desenvolvendo com OpenCode e outros agentes de IA](#desenvolvendo-com-opencode-e-outros-agentes-de-ia)
 14. [Segurança](#segurança)
 15. [Problemas comuns](#problemas-comuns)
 16. [Roadmap](#roadmap)
@@ -43,7 +43,8 @@ Projeto de portfólio que mostra como integrar **LLMs** em uma aplicação Java 
 - **Saídas estruturadas**: a IA responde em JSON, convertido automaticamente em `records` Java.
 - **Prompts versionados** em arquivos `.st`, separados do código.
 - **Provedor intercambiável** (Groq, Gemini, Ollama, OpenAI) por configuração.
-- Persistência (JPA), validação, erros no padrão RFC 7807, OpenAPI/Swagger, rate limit, testes, Docker e CI.
+- **Streaming (SSE)** nas explicações, com persistência ao final do stream.
+- Persistência (JPA + Flyway), validação, erros no padrão RFC 7807, OpenAPI/Swagger, rate limit, testes, Docker e CI.
 
 **Problema que resolve:** devs juniores e times pequenos nem sempre têm quem revise código ou escreva testes. O CodeMentor AI é um revisor disponível 24/7 que explica **o que está errado, por quê e como corrigir**.
 
@@ -53,14 +54,16 @@ Projeto de portfólio que mostra como integrar **LLMs** em uma aplicação Java 
 
 | Decisão | Motivo |
 |---|---|
-| **Groq como provedor padrão** | Free tier sem cartão, muito rápido, modelo `llama-3.3-70b-versatile` produz JSON confiável e a API é compatível com OpenAI |
-| **Ollama como alternativa** | Roda offline, sem limite e sem enviar seu código para a nuvem |
-| **Gemini como terceira opção** | Free tier generoso e bom em código |
+| **Groq como provedor padrão da API** | Free tier sem cartão, muito rápido, modelo `llama-3.3-70b-versatile` produz JSON confiável e a API é compatível com OpenAI |
+| **Ollama como alternativa local** | Roda offline, sem limite e sem enviar seu código para a nuvem |
+| **`qwen2.5-coder:7b` como modelo local recomendado** | Especializado em código e cabe em notebooks com 16 GB de RAM |
+| **Gemini como opção extra** | Free tier com limites que variam; confira a documentação atual |
 | **Spring AI em vez de SDK do provedor** | Abstração única; trocar de provedor = mudar variáveis de ambiente |
 | **Um único starter (`spring-ai-starter-model-openai`)** | Groq, Gemini e Ollama expõem API compatível com OpenAI |
 | **`AiAssistant` como porta única** | Isola a IA, centraliza erros e facilita mockar nos testes |
 | **H2 no dev, PostgreSQL no prod** | Rodar sem instalar nada, mas pronto para produção |
 | **Rate limit próprio (sem dependência extra)** | Protege a cota gratuita; simples de entender |
+| **OpenCode como agente de desenvolvimento** | Open source (MIT), aceita vários provedores e modelos locais, sem depender de um único fornecedor |
 
 ---
 
@@ -68,14 +71,14 @@ Projeto de portfólio que mostra como integrar **LLMs** em uma aplicação Java 
 
 | Recurso | Descrição |
 |---|---|
-|  **Code Review** | Retorna nota 0–10, problemas com severidade, sugestões e código melhorado |
-|  **Gerador de testes** | Gera testes JUnit 5 + Mockito para uma classe Java |
-|  **Explicador** | Explica código para nível `BEGINNER`, `INTERMEDIATE` ou `ADVANCED` |
-|  **Streaming (SSE)** | Explicações chegam em pedaços via `text/event-stream` |
-|  **Histórico** | Todas as análises ficam salvas, com paginação e filtro por tipo |
-|  **Multi-provedor** | Groq, Gemini, Ollama ou OpenAI via variáveis de ambiente |
-|  **Swagger UI** | Documentação interativa em `/swagger-ui.html` |
-|  **Rate limit** | Limite de requisições por IP/minuto para proteger sua cota |
+| **Code Review** | Retorna nota 0–10, problemas com severidade, sugestões e código melhorado |
+| **Gerador de testes** | Gera testes JUnit 5 + Mockito para uma classe Java |
+| **Explicador** | Explica código para nível `BEGINNER`, `INTERMEDIATE` ou `ADVANCED` |
+| **Streaming (SSE)** | Explicações chegam em pedaços via `text/event-stream` |
+| **Histórico** | Todas as análises ficam salvas, com paginação e filtro por tipo |
+| **Multi-provedor** | Groq, Gemini, Ollama ou OpenAI via variáveis de ambiente |
+| **Swagger UI** | Documentação interativa em `/swagger-ui.html` |
+| **Rate limit** | Limite de requisições por IP/minuto para proteger sua cota |
 
 ---
 
@@ -99,23 +102,50 @@ Fluxo de um code review:
 
 ---
 
-## Provedores de IA gratuitos
+## Modelos de IA
+
+O projeto usa IA em **dois papéis diferentes**, que não devem ser confundidos:
+
+1. **Motor da API:** o modelo que o CodeMentor chama em tempo de execução para revisar, testar e explicar código (configurado por variáveis de ambiente).
+2. **Agente de desenvolvimento:** a ferramenta de terminal usada para escrever e evoluir o código do projeto (OpenCode, descrito [mais abaixo](#desenvolvendo-com-opencode-e-outros-agentes-de-ia)).
+
+### 1. Motor da API (provedores configuráveis)
 
 > **Atenção:** limites e nomes de modelos dos *free tiers* mudam com frequência. Confira a documentação oficial de cada provedor.
 
 | Provedor | Custo | Chave | `AI_BASE_URL` | `AI_COMPLETIONS_PATH` | Exemplo de `AI_MODEL` |
 |---|---|---|---|---|---|
 | **Groq** (padrão) | Free tier | [console.groq.com](https://console.groq.com) | `https://api.groq.com/openai` | `/v1/chat/completions` | `llama-3.3-70b-versatile` |
-| **Google Gemini** | Free tier | [aistudio.google.com](https://aistudio.google.com) | `https://generativelanguage.googleapis.com/v1beta/openai` | `/chat/completions` | `gemini-2.0-flash` |
 | **Ollama** (local) | Grátis, ilimitado | não precisa (use `ollama`) | `http://localhost:11434` | `/v1/chat/completions` | `qwen2.5-coder:7b` |
+| **Google Gemini** | Free tier (confira os limites atuais) | [aistudio.google.com](https://aistudio.google.com) | `https://generativelanguage.googleapis.com/v1beta/openai` | `/chat/completions` | consulte a lista atual de modelos |
 | **OpenAI** | Pago | [platform.openai.com](https://platform.openai.com) | `https://api.openai.com` | `/v1/chat/completions` | `gpt-4o-mini` |
 
-### Ollama (100% offline)
+**Modelos locais testados neste projeto (Ollama):**
+
+| Modelo | Tamanho aproximado | Uso recomendado |
+|---|---|---|
+| `qwen2.5-coder:7b` | ≈ 4,7 GB | Melhor opção local para code review e testes em notebooks de 16 GB |
+| `qwen2.5-coder:1.5b` | menor | Máquinas com pouca RAM; qualidade reduzida |
+| `qwen3:4b` | ≈ 2,5 GB | Perguntas rápidas e explicações simples; pode falhar em JSON estruturado complexo (review e testes) |
 
 ```bash
-ollama pull qwen2.5-coder:7b        # ≈ 4,5 GB
-ollama pull qwen2.5-coder:1.5b      # alternativa para máquinas fracas
+ollama pull qwen2.5-coder:7b
+ollama pull qwen3:4b
 ```
+
+**Qual escolher conforme a RAM do computador:**
+
+| RAM | Recomendação |
+|---|---|
+| 8 GB ou menos | Groq (nuvem). Localmente, só modelos de 1,5B, com qualidade reduzida |
+| 16 GB | Groq no dia a dia e `qwen2.5-coder:7b` como plano offline |
+| 32 GB ou mais | Modelos locais maiores, conforme a disponibilidade no Ollama |
+
+Sem GPU dedicada, os modelos locais rodam na CPU e podem levar de dezenas de segundos a minutos por resposta. Se o JSON vier quebrado com um modelo pequeno, use um modelo maior ou volte para o Groq.
+
+### 2. Agente de desenvolvimento (OpenCode)
+
+O OpenCode é usado para evoluir o código. Ele pode usar os modelos gratuitos do próprio catálogo, a chave de provedores como Groq ou Nvidia NIM, ou os modelos locais do Ollama. Detalhes na seção [Desenvolvendo com OpenCode](#desenvolvendo-com-opencode-e-outros-agentes-de-ia).
 
 ---
 
@@ -124,8 +154,15 @@ ollama pull qwen2.5-coder:1.5b      # alternativa para máquinas fracas
 ### Pré-requisitos
 
 - **JDK 21+** e **Maven 3.9+**
-- Uma chave gratuita da Groq/Gemini **ou** Ollama instalado
+- Uma chave gratuita do Groq **ou** Ollama instalado com um modelo baixado
 - Docker (opcional)
+
+Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y openjdk-21-jdk maven git curl
+```
 
 ### 1. Clonar
 
@@ -136,19 +173,29 @@ cd codementor-ai
 
 ### 2. Configurar a IA
 
-Linux/macOS:
+**Opção A: Groq (nuvem, padrão)**
 
 ```bash
 export AI_API_KEY=sua-chave-groq
 ```
 
-Windows (PowerShell):
+Windows (PowerShell): `$env:AI_API_KEY="sua-chave-groq"`
 
-```powershell
-$env:AI_API_KEY="sua-chave-groq"
+**Opção B: Ollama (local, sem chave)**
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen2.5-coder:7b
+
+export AI_BASE_URL=http://localhost:11434
+export AI_COMPLETIONS_PATH=/v1/chat/completions
+export AI_API_KEY=ollama
+export AI_MODEL=qwen2.5-coder:7b
 ```
 
-Para outro provedor, defina também `AI_BASE_URL`, `AI_COMPLETIONS_PATH` e `AI_MODEL` (veja a tabela acima ou o arquivo `.env.example`).
+Aqui `AI_API_KEY=ollama` é só um texto exigido pelo projeto, não é uma chave real.
+
+Para outros provedores, veja a tabela de [modelos de IA](#modelos-de-ia) ou o arquivo `.env.example`.
 
 ### 3. Rodar
 
@@ -192,7 +239,7 @@ Mais exemplos prontos em [`docs/requests.http`](docs/requests.http) (funciona no
 O schema é versionado em `src/main/resources/db/migration` (a V1 cria a tabela `analysis`).
 
 - **`dev`**: o H2 em memória recebe as migrations e o `ddl-auto` continua `update`.
-- **`prod`**: `ddl-auto: validate` — o Hibernate apenas valida; qualquer mudança de schema exige uma nova migration.
+- **`prod`**: `ddl-auto: validate`. O Hibernate apenas valida; qualquer mudança de schema exige uma nova migration.
 - Bancos de produção já existentes (criados com `update`) são **baselinados** na V1 (`baseline-on-migrate: true`), sem recriar a tabela.
 
 Para evoluir o schema, adicione um arquivo como `V2__descricao.sql` e reinicie a aplicação.
@@ -270,7 +317,9 @@ curl -N -X POST http://localhost:8080/api/v1/explanations/stream \
 | `done` | `{"id":1,"level":"BEGINNER","createdAt":"..."}` | fim do stream; a análise já foi salva no histórico |
 | `error` | `{"detail":"..."}` | falha do provedor durante o stream |
 
-O status é `200` (o stream já começou); erros de validação continuam retornando `400` antes do stream.
+O status é `200` (o stream já começou); erros de validação continuam retornando `400` antes do stream. Em caso de erro ou cancelamento pelo cliente, o texto incompleto **não** é salvo no histórico.
+
+> Apenas as explicações usam streaming. Review e testes devolvem JSON estruturado, que só é válido quando completo.
 
 ### Erros (RFC 7807)
 
@@ -335,7 +384,7 @@ spring:
           temperature: 0.2
 ```
 
-**Saída estruturada** — o `AiAssistant` pede ao modelo que responda em JSON e o Spring AI converte direto para um record:
+**Saída estruturada**: o `AiAssistant` pede ao modelo que responda em JSON e o Spring AI converte direto para um record:
 
 ```java
 chatClient.prompt()
@@ -344,7 +393,7 @@ chatClient.prompt()
     .entity(ReviewResult.class);   // JSON → record Java
 ```
 
-**Prompts em arquivo** — `src/main/resources/prompts/review.st`. As variáveis usam `{nome}`; por isso os prompts **não** podem ter chaves literais.
+**Prompts em arquivo**: `src/main/resources/prompts/review.st`. As variáveis usam `{nome}`; por isso os prompts **não** podem ter chaves literais.
 
 ---
 
@@ -384,24 +433,65 @@ docker compose exec ollama ollama pull qwen2.5-coder:1.5b
 
 ---
 
-## Desenvolvendo com agentes de IA (Claude Code / Codex)
+## Desenvolvendo com OpenCode e outros agentes de IA
 
-O repositório já traz os arquivos que orientam agentes de programação:
+O projeto é desenvolvido com o **[OpenCode](https://opencode.ai)**, um agente de programação open source (MIT) para o terminal. Ele lê o projeto, edita arquivos, roda comandos (como `mvn test`) e aceita vários provedores de modelos, inclusive modelos locais.
 
-- **`CLAUDE.md`**: lido automaticamente pelo **Claude Code**.
-- **`AGENTS.md`**: lido pelo **OpenAI Codex** e outros agentes.
+**Por que OpenCode:** não prende você a um único fornecedor. Se um provedor mudar o plano gratuito, basta trocar de modelo no mesmo programa. Isso aconteceu com o Gemini CLI, cujo acesso gratuito para contas individuais foi encerrado em 18 de junho de 2026, com substituição pelo Antigravity CLI, de código fechado.
+
+### Modelos usados no OpenCode
+
+| Origem | Modelos (exemplos) | Observações |
+|---|---|---|
+| **Catálogo gratuito do OpenCode (Zen)** | DeepSeek V4 Flash Free, Nemotron 3 Ultra Free, MiMo-V2.5 Free, Big Pickle | Gratuitos por tempo limitado; a lista muda. Use `/models` dentro do OpenCode para ver o que está liberado |
+| **Nvidia NIM** (chave gratuita) | Modelos como GLM, DeepSeek e Nemotron, conforme o catálogo atual | Requer criar uma chave em build.nvidia.com |
+| **Groq** (chave gratuita) | `llama-3.3-70b-versatile` | Rápido; sujeito aos limites do plano gratuito |
+| **Ollama (local)** | `qwen2.5-coder:7b`, `qwen3:4b` | Offline e privado; modelos pequenos costumam falhar em tarefas longas de agente |
+
+Notas importantes:
+
+- Os modelos gratuitos do Zen são pensados para uso **dentro do OpenCode**. Não os use como `AI_BASE_URL` da API do projeto; para isso, use Groq, Ollama ou outro provedor da [tabela acima](#1-motor-da-api-provedores-configuráveis).
+- O GLM 5.1 aparece como **pago** no Zen; para usá-lo de graça, verifique se está disponível via Nvidia NIM.
+- Modelos gratuitos na nuvem podem usar seus prompts para melhorar o serviço. **Não** use com código confidencial; para isso, use o Ollama.
+
+### Instalação e uso (Ubuntu)
+
+Confira o comando de instalação atual em [opencode.ai](https://opencode.ai). Em geral:
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-cd codementor-ai && claude
+curl -fsSL https://opencode.ai/install | bash
+cd codementor-ai
+opencode
 ```
 
-Ideias de tarefas para evoluir o projeto com um agente (uma por vez, revisando o diff):
+Dentro do OpenCode, use `/models` para escolher o modelo. Para tarefas de agente (editar vários arquivos, depurar, rodar testes), prefira um modelo gratuito da nuvem ou o Groq; deixe o Ollama para trabalho offline ou código sensível.
+
+### Arquivos de instruções do agente
+
+- **`AGENTS.md`**: instruções para agentes de programação, como o OpenCode e o OpenAI Codex.
+- **`CLAUDE.md`**: mesmas convenções, mantidas para compatibilidade com o Claude Code.
+
+As regras principais: chamadas à IA só via `AiAssistant`, prompts em `prompts/*.st`, testes nunca chamam a IA real e nenhuma chave de API vai para o código.
+
+### Fluxo de trabalho recomendado
+
+```bash
+git init && git add . && git commit -m "chore: versão inicial"   # ponto de retorno
+opencode                                                          # peça uma tarefa por vez
+git diff && mvn -q test                                           # revise e teste
+git add . && git commit -m "feat: descrição da mudança"
+```
+
+Se o agente estragar algo: `git checkout .` volta ao último commit.
+
+### Ideias de tarefas para evoluir o projeto
 
 1. *"Adicione cache de explicações com Caffeine para economizar cota."*
 2. *"Escreva testes de integração com Testcontainers para o histórico."*
 3. *"Adicione um endpoint que recebe a URL de um Pull Request do GitHub e revisa o diff."*
 4. *"Adicione paginação por cursor no histórico."*
+
+Peça sempre uma tarefa por vez, revise o diff e rode os testes antes de seguir.
 
 ---
 
@@ -409,9 +499,11 @@ Ideias de tarefas para evoluir o projeto com um agente (uma por vez, revisando o
 
 - **Nunca** versione chaves de API (`.env` já está no `.gitignore`).
 - O código enviado é transmitido ao provedor de IA. Para código sensível, use **Ollama local**.
+- Modelos gratuitos na nuvem (inclusive os do OpenCode e o free tier do Gemini) podem usar seus prompts para melhorar o serviço; confira os termos de cada um.
 - Limite de 8000 caracteres por requisição e rate limit por IP evitam abuso e estouro de cota.
 - A API **não tem autenticação** ainda. Antes de expor publicamente, adicione Spring Security/JWT (veja o Roadmap).
 - O rate limit é em memória (uma instância). Para várias instâncias, use Redis.
+- Ao usar um agente de IA, não deixe que ele leia o arquivo `.env`.
 
 ---
 
@@ -422,9 +514,11 @@ Ideias de tarefas para evoluir o projeto com um agente (uma por vez, revisando o
 | `502 Bad Gateway` | Chave inválida, provedor fora do ar ou modelo errado | Confira `AI_API_KEY`, `AI_MODEL` e os logs da aplicação |
 | Erro `404` do provedor | `AI_COMPLETIONS_PATH` errado | Gemini: `/chat/completions`; Groq/Ollama: `/v1/chat/completions` |
 | `429` | Rate limit local ou cota do free tier | Aguarde ou aumente `RATE_LIMIT_RPM` |
-| JSON inválido da IA | Modelo pequeno demais | Use um modelo maior (ex.: `llama-3.3-70b-versatile`, `qwen2.5-coder:7b`) |
+| JSON inválido da IA | Modelo pequeno demais (ex.: `qwen3:4b`) | Use um modelo maior (`llama-3.3-70b-versatile`, `qwen2.5-coder:7b`) |
 | Respostas lentas no Ollama | Modelo grande rodando em CPU | Use `qwen2.5-coder:1.5b` ou um provedor em nuvem |
 | `Connection refused` em `localhost:11434` | Ollama não está rodando | Execute `ollama serve` |
+| Modelo gratuito sumiu no OpenCode | Modelos gratuitos são temporários | Use `/models` e escolha outro, ou ligue o Groq/Ollama |
+| Agente de IA se perde em tarefas longas | Modelo local pequeno | Troque para um modelo gratuito da nuvem |
 
 ---
 
